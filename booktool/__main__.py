@@ -1,7 +1,7 @@
 """
 Booktool CLI
 """
-from typing import List
+from typing import Iterable, Iterator, List
 import logging
 import os
 import re
@@ -11,7 +11,7 @@ import mutagen
 
 import booktool
 from booktool.audio import is_audio
-from booktool.audio.track import set_track_number
+from booktool.audio.track import set_track_number, get_duration
 
 logger = logging.getLogger(booktool.__name__)
 
@@ -46,6 +46,30 @@ def fix_track_numbers(paths: List[str]):
             track_filename = os.path.basename(filename)
             track_number = int(re.search(r"\d+", track_filename).group(0))
             set_track_number(file, track_number, total_tracks)
+
+
+@cli.command()
+@click.argument("paths", type=click.Path(exists=True), nargs=-1)
+def duration(paths: List[str]):
+    """
+    Sum total duration of all indicated audio files.
+
+    For each supplied directory, expand to all audio files immediately inside.
+    For each file, find the duration and sum the total seconds.
+    """
+
+    def get_durations(paths: Iterable[str]) -> Iterator[float]:
+        for path in paths:
+            if os.path.isdir(path):
+                for filename in os.listdir(path):
+                    if is_audio(filename):
+                        filepath = os.path.join(path, filename)
+                        yield get_duration(filepath)
+            else:
+                yield get_duration(path)
+
+    total_duration = round(sum(get_durations(paths)))
+    print(total_duration)
 
 
 main = cli.main

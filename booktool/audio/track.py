@@ -58,3 +58,9 @@ def set_track_number_mp4(file: mutagen.mp4.MP4, track_number: int, total_tracks:
     file.tags["trkn"] = trkn
     logger.debug("Saving file: %s", file.filename)
     file.save()
+
+
+def get_duration(file: str) -> float:
+    logger.debug("Reading duration of file: %s", file)
+    file = mutagen.File(file)
+    return file.info.length
