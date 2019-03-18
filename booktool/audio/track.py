@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 @singledispatch
-def set_track_number(file: mutagen.File, track_number: int, total_tracks: int):
+def set_track_number(file, track_number: int, total_tracks: int):
     raise NotImplementedError(f"set_track_number not implemented for file: {file}")
 
 
