@@ -14,6 +14,12 @@ def set_track_number(file, track_number: int, total_tracks: int):
 
 
 @set_track_number.register
+def set_track_number_str(file: str, track_number: int, total_tracks: int):
+    file = mutagen.File(file)
+    return set_track_number(file, track_number, total_tracks)
+
+
+@set_track_number.register
 def set_track_number_mp3(file: mutagen.mp3.MP3, track_number: int, total_tracks: int):
     logger.debug("Opened file as MP3")
 
