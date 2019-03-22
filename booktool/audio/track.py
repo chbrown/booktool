@@ -1,11 +1,94 @@
-import logging
+from typing import NamedTuple
 from functools import singledispatch
+import logging
+import os
+import re
 
 import mutagen
 import mutagen.mp3
 import mutagen.mp4
 
+from booktool.audio import is_audio
+
 logger = logging.getLogger(__name__)
+
+
+class TrackNumber(NamedTuple):
+    track_number: int
+    total_tracks: int
+
+    @classmethod
+    def from_path(cls, path: str):
+        dirname, basename = os.path.split(path)
+        total_tracks = len(list(filter(is_audio, os.listdir(dirname))))
+        root, _ = os.path.splitext(basename)
+        track_number = int(re.search(r"\d+", root).group(0))
+        return cls(track_number, total_tracks)
+
+    @classmethod
+    def from_string(cls, string: str):
+        parts = list(map(int, string.split("/", maxsplit=1)))
+        if len(parts) != 2:
+            raise ValueError(f"Cannot create {cls.__name__} from string: {string!r}")
+        return cls(*parts)
+
+
+###########################
+# get_track_number dispatch
+
+
+@singledispatch
+def get_track_number(file) -> TrackNumber:
+    """
+    Read tuple of (track_number, total_tracks) from file.
+    1. Try to read it from the file's metadata; failing that:
+    2. Infer it from filesystem
+       * If the track_number inferred from the filename conflicts with the file's
+       metadata, raise an AssertionError.
+    """
+    raise NotImplementedError(f"get_track_number not implemented for file: {file}")
+
+
+@get_track_number.register
+def get_track_number_str(file: str) -> TrackNumber:
+    file = mutagen.File(file)
+    return get_track_number(file)
+
+
+@get_track_number.register
+def get_track_number_mp3(file: mutagen.mp3.MP3) -> TrackNumber:
+    logger.debug("Reading file as MP3")
+    text = str(file.tags.get("TRCK", ""))
+    try:
+        return TrackNumber.from_string(text)
+    except Exception:
+        track_number = TrackNumber.from_path(file.filename)
+        assert (
+            not text or int(text) == track_number.track_number
+        ), "Metadata conflicts with filename"
+        return track_number
+
+
+@get_track_number.register
+def get_track_number_mp4(file: mutagen.mp4.MP4) -> TrackNumber:
+    logger.debug("Reading file as MP4")
+    # not sure when having more than one "trkn" tags might come up :|
+    tags = file.tags.get("trkn", [])
+    assert len(tags) < 2, "Too many trkn tags"
+    if tags:
+        tag = tags[0]
+        assert len(tag) < 3, "Too many trkn tag parts"
+        if len(tag) == 2:
+            return TrackNumber(*tag)
+    track_number = TrackNumber.from_path(file.filename)
+    assert (
+        not tags or int(tags[0][0]) == track_number.track_number
+    ), "Metadata conflicts with filename"
+    return track_number
+
+
+###########################
+# set_track_number dispatch
 
 
 @singledispatch

@@ -3,15 +3,12 @@ Booktool CLI
 """
 from typing import List
 import logging
-import os
-import re
 
 import click
-import mutagen
 
 import booktool
-from booktool.audio import is_audio, find_audio
-from booktool.audio.track import set_track_number, get_duration
+from booktool.audio import find_audio
+from booktool.audio.track import get_duration, get_track_number, set_track_number
 
 logger = logging.getLogger(booktool.__name__)
 
@@ -33,19 +30,9 @@ def fix_track_numbers(paths: List[str]):
     """
     Fix track numbers in audiobook(s)
     """
-    for path in paths:
-        logger.info("Fixing track numbers in book: %s", path)
-        filenames = list(filter(is_audio, os.listdir(path)))
-        total_tracks = len(filenames)
-        logger.info("Found %d chapters", total_tracks)
-        for filename in filenames:
-            logger.info("Fixing track number in file: %s", filename)
-            filepath = os.path.join(path, filename)
-            file = mutagen.File(filepath)
-
-            track_filename = os.path.basename(filename)
-            track_number = int(re.search(r"\d+", track_filename).group(0))
-            set_track_number(file, track_number, total_tracks)
+    for path in find_audio(*paths):
+        track_number, total_tracks = get_track_number(path)
+        set_track_number(path, track_number, total_tracks)
 
 
 @cli.command()
