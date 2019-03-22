@@ -1,7 +1,7 @@
 """
 Booktool CLI
 """
-from typing import Iterable, Iterator, List
+from typing import List
 import logging
 import os
 import re
@@ -10,7 +10,7 @@ import click
 import mutagen
 
 import booktool
-from booktool.audio import is_audio
+from booktool.audio import is_audio, find_audio
 from booktool.audio.track import set_track_number, get_duration
 
 logger = logging.getLogger(booktool.__name__)
@@ -54,21 +54,10 @@ def duration(paths: List[str]):
     """
     Sum total duration of all indicated audio files.
 
-    For each supplied directory, expand to all audio files immediately inside.
-    For each file, find the duration and sum the total seconds.
+    For each directory, recursively expand to all files within.
+    For each file, exclude if the name does not match known audio extensions.
     """
-
-    def get_durations(paths: Iterable[str]) -> Iterator[float]:
-        for path in paths:
-            if os.path.isdir(path):
-                for filename in os.listdir(path):
-                    if is_audio(filename):
-                        filepath = os.path.join(path, filename)
-                        yield get_duration(filepath)
-            else:
-                yield get_duration(path)
-
-    total_duration = round(sum(get_durations(paths)))
+    total_duration = round(sum(map(get_duration, find_audio(*paths))))
     print(total_duration)
 
 
