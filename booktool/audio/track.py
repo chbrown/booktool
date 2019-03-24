@@ -114,13 +114,12 @@ def set_track_number_mp3(file: mutagen.mp3.MP3, track_number: int, total_tracks:
 
     existing_TRCK = file.tags.get("TRCK")
     if existing_TRCK:
-        logger.info("Already has TRCK tag: %r", existing_TRCK)
+        logger.debug("Already has TRCK tag: %r", existing_TRCK)
         if existing_TRCK == TRCK:
             return
 
-    logger.info("Setting TRCK tag: %r", TRCK)
+    logger.info("Saving new TRCK tag %r to file: %s", TRCK, file.filename)
     file.tags.add(TRCK)
-    logger.debug("Saving file: %s", file.filename)
     file.save(v2_version=minor)
 
 
@@ -133,13 +132,12 @@ def set_track_number_mp4(file: mutagen.mp4.MP4, track_number: int, total_tracks:
 
     trkn = [(track_number, total_tracks)]
     if existing_trkn:
-        logger.info("Already has trkn tags: %r", existing_trkn)
+        logger.debug("Already has trkn tags: %r", existing_trkn)
         if existing_trkn == trkn:
             return
 
-    logger.info("Setting trkn tags: %r", trkn)
+    logger.info("Saving new trkn tags %r to file: %s", trkn, file.filename)
     file.tags["trkn"] = trkn
-    logger.debug("Saving file: %s", file.filename)
     file.save()
 
 
