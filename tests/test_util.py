@@ -10,6 +10,7 @@ data = [
         ["The Information: A History, a Theory, a Flood"],
         "The_Information-A_History_a_Theory_a_Flood",
     ),
+    (["The Time Traveler's Wife"], "The_Time_Travelers_Wife"),
 ]
 
 
