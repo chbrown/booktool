@@ -141,6 +141,64 @@ def set_track_number_mp4(file: mutagen.mp4.MP4, track_number: int, total_tracks:
     file.save()
 
 
+#####################
+# get_artist dispatch
+
+
+@singledispatch
+def get_artist(file) -> str:
+    raise NotImplementedError(f"get_artist not implemented for file: {file}")
+
+
+@get_artist.register
+def get_artist_str(file: str) -> str:
+    file = mutagen.File(file)
+    return get_artist(file)
+
+
+@get_artist.register
+def get_artist_mp3(file: mutagen.mp3.MP3) -> str:
+    logger.debug("Reading file as MP3")
+    # the id3.TextFrame instance returned by id3.ID3.get stringifies nicely
+    text = str(file.tags.get("TPE1"))
+    # get the first name
+    return next(iter(text.split("/")))
+
+
+@get_artist.register
+def get_artist_mp4(file: mutagen.mp4.MP4) -> str:
+    logger.debug("Reading file as MP4")
+    # MP4Tags.get returns a list of strings
+    return next(iter(file.tags.get("©ART")))
+
+
+####################
+# get_album dispatch
+
+
+@singledispatch
+def get_album(file) -> str:
+    raise NotImplementedError(f"get_album not implemented for file: {file}")
+
+
+@get_album.register
+def get_album_str(file: str) -> str:
+    file = mutagen.File(file)
+    return get_album(file)
+
+
+@get_album.register
+def get_album_mp3(file: mutagen.mp3.MP3) -> str:
+    logger.debug("Reading file as MP3")
+    return str(file.tags.get("TALB"))
+
+
+@get_album.register
+def get_album_mp4(file: mutagen.mp4.MP4) -> str:
+    logger.debug("Reading file as MP4")
+    return " ".join(file.tags.get("©alb"))
+
+
 def get_duration(file: str) -> float:
     logger.debug("Reading duration of file: %s", file)
     file = mutagen.File(file)
