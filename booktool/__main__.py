@@ -26,9 +26,7 @@ logger = logging.getLogger(booktool.__name__)
 @click.option("-v", "--verbose", count=True, help="Increase logging verbosity")
 def cli(verbose: int):
     level = logging.WARNING - (verbose * 10)
-    logging.basicConfig(
-        format="%(asctime)14s %(levelname)-7s %(name)s - %(message)s", level=level
-    )
+    logging.basicConfig(format="%(levelname)-7s %(name)s - %(message)s", level=level)
     logging.debug("Set logging level to %s [%d]", logging.getLevelName(level), level)
 
 
