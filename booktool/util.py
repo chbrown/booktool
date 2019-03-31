@@ -35,6 +35,33 @@ def sanitize(string: str) -> str:
     return string
 
 
+def _gethome() -> str:
+    home = os.getenv("HOME")
+    if home:
+        return home
+    import pwd
+
+    return pwd.getpwuid(os.getuid()).pw_dir
+
+
+def relativize_path(path: str) -> str:
+    """
+    If `path` starts with the current working directory, replace that prefix with `.`.
+    If it starts with the user's home path, replace that with the symbol `~`.
+    """
+    # prepare cwd and home (must check that cwd != home before using cwd)
+    cwd = os.getcwd()
+    home = _gethome()
+    # try cwd
+    if cwd != home and path.startswith(cwd):
+        return os.curdir + path[len(cwd) :]
+    # try home
+    if path.startswith(home):
+        return "~" + path[len(home) :]
+    # return unchanged
+    return path
+
+
 def chmod(path: str, mode: int = 0o644, dry_run: bool = False):
     """
     Set the access permissions of the file/directory at `path` to `mode`.
@@ -44,7 +71,7 @@ def chmod(path: str, mode: int = 0o644, dry_run: bool = False):
     current_mode = os.stat(path).st_mode & 0o777
     # short-circuit if current mode matches
     if current_mode != mode:
-        logger.info("%s: chmod %o -> %o", path, current_mode, mode)
+        logger.info("%s: chmod %o -> %o", relativize_path(path), current_mode, mode)
         if not dry_run:
             os.chmod(path, mode)
 
@@ -59,7 +86,7 @@ def move(src: str, dst: str, dry_run: bool = False) -> str:
     if os.path.realpath(src) != os.path.realpath(dst):
         if os.path.exists(dst):
             raise FileExistsError(dst)
-        logger.info("%s: move -> %s", src, dst)
+        logger.info("%s: move -> %s", relativize_path(src), relativize_path(dst))
         if not dry_run:
             os.renames(src, dst)
             return dst
