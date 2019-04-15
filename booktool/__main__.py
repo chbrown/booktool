@@ -55,6 +55,7 @@ def canonicalize(paths: List[str], destination: str, dry_run: bool):
     2. fix track numbers
     """
     for path in find_audio(*paths):
+        logger.debug("Canonicalizing %r", path)
         artist = sanitize(get_artist(path))
         album = sanitize(get_album(path))
         _, ext = os.path.splitext(os.path.basename(path))
