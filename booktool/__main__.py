@@ -70,7 +70,7 @@ def canonicalize(paths: List[str], destination: str, dry_run: bool):
         # fix permissions on files
         chmod(path, 0o644, dry_run=dry_run)
         # fix track numbers in audio
-        set_track_info(path, (track_number, total_tracks))
+        set_track_info(path, (track_number, total_tracks), dry_run=dry_run)
         # ignore xattrs; they're dropped when syncing to cloud storage anyway
 
 

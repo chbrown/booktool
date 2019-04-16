@@ -92,18 +92,20 @@ def get_track_info_mp4(file: mutagen.mp4.MP4) -> TrackInfo:
 
 
 @singledispatch
-def set_track_info(file, track_info: TrackInfo):
+def set_track_info(file, track_info: TrackInfo, dry_run: bool = False):
     raise NotImplementedError(f"set_track_info not implemented for file: {file}")
 
 
 @set_track_info.register
-def set_track_info_str(file: str, track_info: TrackInfo):
+def set_track_info_str(file: str, track_info: TrackInfo, dry_run: bool = False):
     file = mutagen.File(file)
-    return set_track_info(file, track_info)
+    return set_track_info(file, track_info, dry_run=dry_run)
 
 
 @set_track_info.register
-def set_track_info_mp3(file: mutagen.mp3.MP3, track_info: TrackInfo):
+def set_track_info_mp3(
+    file: mutagen.mp3.MP3, track_info: TrackInfo, dry_run: bool = False
+):
     logger.debug("Opened file as MP3")
 
     major, minor, patch = file.tags.version
@@ -121,11 +123,14 @@ def set_track_info_mp3(file: mutagen.mp3.MP3, track_info: TrackInfo):
 
     logger.info("Saving new TRCK tag %r to file: %s", TRCK, file.filename)
     file.tags.add(TRCK)
-    file.save(v2_version=minor)
+    if not dry_run:
+        file.save(v2_version=minor)
 
 
 @set_track_info.register
-def set_track_info_mp4(file: mutagen.mp4.MP4, track_info: TrackInfo):
+def set_track_info_mp4(
+    file: mutagen.mp4.MP4, track_info: TrackInfo, dry_run: bool = False
+):
     logger.debug("Opened file as MP4")
 
     existing_trkn = file.tags.get("trkn", [])
@@ -139,7 +144,8 @@ def set_track_info_mp4(file: mutagen.mp4.MP4, track_info: TrackInfo):
 
     logger.info("Saving new trkn tags %r to file: %s", trkn, file.filename)
     file.tags["trkn"] = trkn
-    file.save()
+    if not dry_run:
+        file.save()
 
 
 #####################
