@@ -92,24 +92,25 @@ def get_track_info_mp4(file: mutagen.mp4.MP4) -> TrackInfo:
 
 
 @singledispatch
-def set_track_info(file, track_number: int, total_tracks: int):
+def set_track_info(file, track_info: TrackInfo):
     raise NotImplementedError(f"set_track_info not implemented for file: {file}")
 
 
 @set_track_info.register
-def set_track_info_str(file: str, track_number: int, total_tracks: int):
+def set_track_info_str(file: str, track_info: TrackInfo):
     file = mutagen.File(file)
-    return set_track_info(file, track_number, total_tracks)
+    return set_track_info(file, track_info)
 
 
 @set_track_info.register
-def set_track_info_mp3(file: mutagen.mp3.MP3, track_number: int, total_tracks: int):
+def set_track_info_mp3(file: mutagen.mp3.MP3, track_info: TrackInfo):
     logger.debug("Opened file as MP3")
 
     major, minor, patch = file.tags.version
     logger.debug("Manipulating ID3 version %s.%s.%s", major, minor, patch)
     assert major == 2, "ID3 version is not 2.*.*"
 
+    track_number, total_tracks = track_info
     TRCK = mutagen.id3.TRCK(encoding=0, text=f"{track_number}/{total_tracks}")
 
     existing_TRCK = file.tags.get("TRCK")
@@ -124,13 +125,13 @@ def set_track_info_mp3(file: mutagen.mp3.MP3, track_number: int, total_tracks: i
 
 
 @set_track_info.register
-def set_track_info_mp4(file: mutagen.mp4.MP4, track_number: int, total_tracks: int):
+def set_track_info_mp4(file: mutagen.mp4.MP4, track_info: TrackInfo):
     logger.debug("Opened file as MP4")
 
     existing_trkn = file.tags.get("trkn", [])
     assert len(existing_trkn) < 2, "Too many trkn tags"
 
-    trkn = [(track_number, total_tracks)]
+    trkn = [tuple(track_info)]
     if existing_trkn:
         logger.debug("Already has trkn tags: %r", existing_trkn)
         if existing_trkn == trkn:
