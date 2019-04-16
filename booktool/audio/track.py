@@ -13,7 +13,7 @@ from booktool.audio import is_audio
 logger = logging.getLogger(__name__)
 
 
-class TrackNumber(NamedTuple):
+class TrackInfo(NamedTuple):
     track_number: int
     total_tracks: int
 
@@ -34,11 +34,11 @@ class TrackNumber(NamedTuple):
 
 
 ###########################
-# get_track_number dispatch
+# get_track_info dispatch
 
 
 @singledispatch
-def get_track_number(file) -> TrackNumber:
+def get_track_info(file) -> TrackInfo:
     """
     Read tuple of (track_number, total_tracks) from file.
     1. Try to read it from the file's metadata; failing that:
@@ -46,31 +46,31 @@ def get_track_number(file) -> TrackNumber:
        * If the track_number inferred from the filename conflicts with the file's
        metadata, raise an AssertionError.
     """
-    raise NotImplementedError(f"get_track_number not implemented for file: {file}")
+    raise NotImplementedError(f"get_track_info not implemented for file: {file}")
 
 
-@get_track_number.register
-def get_track_number_str(file: str) -> TrackNumber:
+@get_track_info.register
+def get_track_info_str(file: str) -> TrackInfo:
     file = mutagen.File(file)
-    return get_track_number(file)
+    return get_track_info(file)
 
 
-@get_track_number.register
-def get_track_number_mp3(file: mutagen.mp3.MP3) -> TrackNumber:
+@get_track_info.register
+def get_track_info_mp3(file: mutagen.mp3.MP3) -> TrackInfo:
     logger.debug("Reading file as MP3")
     text = str(file.tags.get("TRCK", ""))
     try:
-        return TrackNumber.from_string(text)
+        return TrackInfo.from_string(text)
     except Exception:
-        track_number = TrackNumber.from_path(file.filename)
+        track_number = TrackInfo.from_path(file.filename)
         assert (
             not text or int(text) == track_number.track_number
         ), "Metadata conflicts with filename"
         return track_number
 
 
-@get_track_number.register
-def get_track_number_mp4(file: mutagen.mp4.MP4) -> TrackNumber:
+@get_track_info.register
+def get_track_info_mp4(file: mutagen.mp4.MP4) -> TrackInfo:
     logger.debug("Reading file as MP4")
     # not sure when having more than one "trkn" tags might come up :|
     tags = file.tags.get("trkn", [])
@@ -79,8 +79,8 @@ def get_track_number_mp4(file: mutagen.mp4.MP4) -> TrackNumber:
         tag = tags[0]
         assert len(tag) < 3, "Too many trkn tag parts"
         if len(tag) == 2:
-            return TrackNumber(*tag)
-    track_number = TrackNumber.from_path(file.filename)
+            return TrackInfo(*tag)
+    track_number = TrackInfo.from_path(file.filename)
     assert (
         not tags or int(tags[0][0]) == track_number.track_number
     ), "Metadata conflicts with filename"
@@ -88,22 +88,22 @@ def get_track_number_mp4(file: mutagen.mp4.MP4) -> TrackNumber:
 
 
 ###########################
-# set_track_number dispatch
+# set_track_info dispatch
 
 
 @singledispatch
-def set_track_number(file, track_number: int, total_tracks: int):
-    raise NotImplementedError(f"set_track_number not implemented for file: {file}")
+def set_track_info(file, track_number: int, total_tracks: int):
+    raise NotImplementedError(f"set_track_info not implemented for file: {file}")
 
 
-@set_track_number.register
-def set_track_number_str(file: str, track_number: int, total_tracks: int):
+@set_track_info.register
+def set_track_info_str(file: str, track_number: int, total_tracks: int):
     file = mutagen.File(file)
-    return set_track_number(file, track_number, total_tracks)
+    return set_track_info(file, track_number, total_tracks)
 
 
-@set_track_number.register
-def set_track_number_mp3(file: mutagen.mp3.MP3, track_number: int, total_tracks: int):
+@set_track_info.register
+def set_track_info_mp3(file: mutagen.mp3.MP3, track_number: int, total_tracks: int):
     logger.debug("Opened file as MP3")
 
     major, minor, patch = file.tags.version
@@ -123,8 +123,8 @@ def set_track_number_mp3(file: mutagen.mp3.MP3, track_number: int, total_tracks:
     file.save(v2_version=minor)
 
 
-@set_track_number.register
-def set_track_number_mp4(file: mutagen.mp4.MP4, track_number: int, total_tracks: int):
+@set_track_info.register
+def set_track_info_mp4(file: mutagen.mp4.MP4, track_number: int, total_tracks: int):
     logger.debug("Opened file as MP4")
 
     existing_trkn = file.tags.get("trkn", [])
