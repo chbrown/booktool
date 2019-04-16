@@ -1,6 +1,7 @@
 import os
 import re
 import logging
+import unicodedata
 from string import punctuation
 
 logger = logging.getLogger(__name__)
@@ -11,6 +12,12 @@ def is_sanitized(string: str) -> bool:
 
 
 def sanitize(string: str) -> str:
+    # remove accents (Mn = Modifier Letter)
+    string = "".join(
+        char
+        for char in unicodedata.normalize("NFKD", string)
+        if unicodedata.category(char) != "Mn"
+    )
     # remove periods after initials; ensure a space follows
     string = re.sub(r"\b([A-Z])(\. ?| )", r"\1 ", string)
     # spell out ampersands / plus signs
