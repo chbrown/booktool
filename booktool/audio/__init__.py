@@ -16,4 +16,4 @@ def find_audio(*paths: Iterable[str]) -> Iterator[str]:
         else:
             basename = os.path.basename(path)
             if is_audio(basename):
-                yield path
+                yield os.path.normpath(path)
