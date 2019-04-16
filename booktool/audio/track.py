@@ -57,7 +57,7 @@ def get_track_info_str(file: str) -> TrackInfo:
 
 @get_track_info.register
 def get_track_info_mp3(file: mutagen.mp3.MP3) -> TrackInfo:
-    logger.debug("Reading file as MP3")
+    logger.log(logging.NOTSET, "Reading file as MP3")
     text = str(file.tags.get("TRCK", ""))
     try:
         return TrackInfo.from_string(text)
@@ -71,7 +71,7 @@ def get_track_info_mp3(file: mutagen.mp3.MP3) -> TrackInfo:
 
 @get_track_info.register
 def get_track_info_mp4(file: mutagen.mp4.MP4) -> TrackInfo:
-    logger.debug("Reading file as MP4")
+    logger.log(logging.NOTSET, "Reading file as MP4")
     # not sure when having more than one "trkn" tags might come up :|
     tags = file.tags.get("trkn", [])
     assert len(tags) < 2, "Too many trkn tags"
@@ -106,7 +106,7 @@ def set_track_info_str(file: str, track_info: TrackInfo, dry_run: bool = False):
 def set_track_info_mp3(
     file: mutagen.mp3.MP3, track_info: TrackInfo, dry_run: bool = False
 ):
-    logger.debug("Opened file as MP3")
+    logger.log(logging.NOTSET, "Opened file as MP3")
 
     major, minor, patch = file.tags.version
     logger.debug("Manipulating ID3 version %s.%s.%s", major, minor, patch)
@@ -131,7 +131,7 @@ def set_track_info_mp3(
 def set_track_info_mp4(
     file: mutagen.mp4.MP4, track_info: TrackInfo, dry_run: bool = False
 ):
-    logger.debug("Opened file as MP4")
+    logger.log(logging.NOTSET, "Opened file as MP4")
 
     existing_trkn = file.tags.get("trkn", [])
     assert len(existing_trkn) < 2, "Too many trkn tags"
@@ -165,7 +165,7 @@ def get_artist_str(file: str) -> str:
 
 @get_artist.register
 def get_artist_mp3(file: mutagen.mp3.MP3) -> str:
-    logger.debug("Reading file as MP3")
+    logger.log(logging.NOTSET, "Reading file as MP3")
     # the id3.TextFrame instance returned by id3.ID3.get stringifies nicely
     text = str(file.tags.get("TPE1"))
     # get the first name
@@ -174,7 +174,7 @@ def get_artist_mp3(file: mutagen.mp3.MP3) -> str:
 
 @get_artist.register
 def get_artist_mp4(file: mutagen.mp4.MP4) -> str:
-    logger.debug("Reading file as MP4")
+    logger.log(logging.NOTSET, "Reading file as MP4")
     # MP4Tags.get returns a list of strings
     return next(iter(file.tags.get("©ART")))
 
@@ -196,13 +196,13 @@ def get_album_str(file: str) -> str:
 
 @get_album.register
 def get_album_mp3(file: mutagen.mp3.MP3) -> str:
-    logger.debug("Reading file as MP3")
+    logger.log(logging.NOTSET, "Reading file as MP3")
     return str(file.tags.get("TALB"))
 
 
 @get_album.register
 def get_album_mp4(file: mutagen.mp4.MP4) -> str:
-    logger.debug("Reading file as MP4")
+    logger.log(logging.NOTSET, "Reading file as MP4")
     return " ".join(file.tags.get("©alb"))
 
 
