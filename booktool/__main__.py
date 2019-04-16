@@ -56,14 +56,18 @@ def canonicalize(paths: List[str], destination: str, dry_run: bool):
     """
     for path in find_audio(*paths):
         logger.debug("Canonicalizing %r", path)
-        artist = sanitize(get_artist(path))
-        album = sanitize(get_album(path))
+        artist = get_artist(path)
+        album = get_album(path)
         _, ext = os.path.splitext(os.path.basename(path))
         track_number, total_tracks = get_track_info(path)
         part_width = len(str(total_tracks))
 
-        new_filename = f"{track_number:0{part_width}}{ext}".lower()
-        new_filepath = os.path.join(destination, artist, album, new_filename)
+        new_filepath = os.path.join(
+            destination,
+            sanitize(artist),
+            sanitize(album),
+            f"{track_number:0{part_width}}{ext}".lower(),
+        )
 
         # move to destination
         path = move(path, new_filepath, dry_run=dry_run)
