@@ -1,7 +1,8 @@
 """
 Booktool CLI
 """
-from typing import List
+from typing import List, Tuple
+from itertools import groupby
 import logging
 import os
 
@@ -54,28 +55,52 @@ def canonicalize(paths: List[str], destination: str, dry_run: bool):
     2. fix file permissions
     2. fix track numbers
     """
-    for path in find_audio(*paths):
-        logger.debug("Canonicalizing %r", path)
-        artist = get_artist(path)
-        album = get_album(path)
-        _, ext = os.path.splitext(os.path.basename(path))
-        track_number, total_tracks = get_track_info(path)
-        part_width = len(str(total_tracks))
+    def path_key(path: str) -> Tuple[str, str]:
+        return get_artist(path), get_album(path)
 
-        new_filepath = os.path.join(
-            destination,
-            sanitize(artist),
-            sanitize(album),
-            f"{track_number:0{part_width}}{ext}".lower(),
-        )
+    audio_paths = sorted(find_audio(*paths), key=path_key)
 
-        # move to destination
-        path = move(path, new_filepath, dry_run=dry_run)
-        # fix permissions on files
-        chmod(path, 0o644, dry_run=dry_run)
-        # fix track numbers in audio
-        set_track_info(path, (track_number, total_tracks), dry_run=dry_run)
-        # ignore xattrs; they're dropped when syncing to cloud storage anyway
+    for (artist, album), group_paths in groupby(audio_paths, key=path_key):
+        group_paths = list(group_paths)
+
+        # if all paths in a group are the only audio files in that directory,
+        # move the entire directory
+        commonpath = os.path.commonpath(group_paths)
+        commonpath_audio_paths = set(find_audio(commonpath))
+        if os.path.isdir(commonpath) and commonpath_audio_paths == set(group_paths):
+            logger.debug("Canonicalizing commonpath %r", commonpath)
+            # relativize each path in group to commonpath, so that we can later rejoin
+            # to the canonicalized commonpath, which might or might not be different,
+            # depending on the existing file structure and dry_run setting.
+            group_relpaths = [os.path.relpath(path, commonpath) for path in group_paths]
+            new_commonpath = os.path.join(
+                destination, sanitize(artist), sanitize(album)
+            )
+            commonpath = move(commonpath, new_commonpath, dry_run=dry_run)
+            group_paths = [
+                os.path.join(commonpath, relpath) for relpath in group_relpaths
+            ]
+
+        for path in group_paths:
+            logger.debug("Canonicalizing %r", path)
+            _, ext = os.path.splitext(os.path.basename(path))
+            track_number, total_tracks = get_track_info(path)
+            part_width = len(str(total_tracks))
+
+            new_filepath = os.path.join(
+                destination,
+                sanitize(artist),
+                sanitize(album),
+                f"{track_number:0{part_width}}{ext}".lower(),
+            )
+
+            # move to destination
+            path = move(path, new_filepath, dry_run=dry_run)
+            # fix permissions on files
+            chmod(path, 0o644, dry_run=dry_run)
+            # fix track numbers in audio
+            set_track_info(path, (track_number, total_tracks), dry_run=dry_run)
+            # ignore xattrs; they're dropped when syncing to cloud storage anyway
 
 
 @cli.command()
