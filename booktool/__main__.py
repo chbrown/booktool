@@ -55,6 +55,7 @@ def canonicalize(paths: List[str], destination: str, dry_run: bool):
     2. fix file permissions
     2. fix track numbers
     """
+
     def path_key(path: str) -> Tuple[str, str]:
         return get_artist(path), get_album(path)
 
