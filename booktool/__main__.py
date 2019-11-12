@@ -62,7 +62,7 @@ def canonicalize(paths: List[str], destination: str, dry_run: bool):
     audio_paths = sorted(find_audio(*paths), key=path_key)
 
     for (artist, album), group_paths in groupby(audio_paths, key=path_key):
-        group_paths = list(group_paths)
+        group_paths = sorted(group_paths)
 
         # if all paths in a group are the only audio files in that directory,
         # move the entire directory
