@@ -47,7 +47,7 @@ def get_track_info(file) -> TrackInfo:
     1. Try to read it from the file's metadata; failing that:
     2. Infer it from filesystem
        * If the track_number inferred from the filename conflicts with the file's
-       metadata, raise an AssertionError.
+       metadata, raise a ValueError.
     """
     raise NotImplementedError(f"get_track_info not implemented for file: {file}")
 
@@ -66,9 +66,8 @@ def get_track_info_mp3(file: mutagen.mp3.MP3) -> TrackInfo:
         return TrackInfo.from_string(text)
     except Exception:
         track_number = TrackInfo.from_path(file.filename)
-        assert (
-            not text or int(text) == track_number.track_number
-        ), "Metadata conflicts with filename"
+        if text and int(text) != track_number.track_number:
+            raise ValueError("Metadata conflicts with filename")
         return track_number
 
 
@@ -77,16 +76,17 @@ def get_track_info_mp4(file: mutagen.mp4.MP4) -> TrackInfo:
     logger.log(logging.NOTSET, "Reading file as MP4")
     # not sure when having more than one "trkn" tags might come up :|
     tags = file.tags.get("trkn", [])
-    assert len(tags) < 2, "Too many trkn tags"
+    if len(tags) > 1:
+        raise ValueError("Too many trkn tags")
     if tags:
         tag = tags[0]
-        assert len(tag) < 3, "Too many trkn tag parts"
+        if len(tag) > 2:
+            raise ValueError("Too many trkn tag parts")
         if len(tag) == 2:
             return TrackInfo(*tag)
     track_number = TrackInfo.from_path(file.filename)
-    assert (
-        not tags or int(tags[0][0]) == track_number.track_number
-    ), "Metadata conflicts with filename"
+    if tags and int(tags[0][0]) != track_number.track_number:
+        raise ValueError("Metadata conflicts with filename")
     return track_number
 
 
@@ -113,7 +113,8 @@ def set_track_info_mp3(
 
     major, minor, patch = file.tags.version
     logger.debug("Manipulating ID3 version %s.%s.%s", major, minor, patch)
-    assert major == 2, "ID3 version is not 2.*.*"
+    if major != 2:
+        raise ValueError("ID3 version is not 2.*.*")
 
     track_number, total_tracks = track_info
     TRCK = mutagen.id3.TRCK(encoding=0, text=f"{track_number}/{total_tracks}")
@@ -137,7 +138,8 @@ def set_track_info_mp4(
     logger.log(logging.NOTSET, "Opened file as MP4")
 
     existing_trkn = file.tags.get("trkn", [])
-    assert len(existing_trkn) < 2, "Too many trkn tags"
+    if len(existing_trkn) > 1:
+        raise ValueError("Too many trkn tags")
 
     trkn = [tuple(track_info)]
     if existing_trkn:

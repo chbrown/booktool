@@ -38,7 +38,8 @@ def sanitize(string: str) -> str:
     # remove leading/trailing punctuation
     string = string.strip(punctuation)
     # done!
-    assert is_sanitized(string), f"{string!r} failed sanitization"
+    if not is_sanitized(string):
+        raise ValueError(f"{string!r} failed sanitization")
     return string
 
 
