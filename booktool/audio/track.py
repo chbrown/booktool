@@ -29,7 +29,10 @@ class TrackInfo(NamedTuple):
     def from_string(cls, string: str):
         parts = list(map(int, string.split("/", maxsplit=1)))
         if len(parts) != 2:
-            raise ValueError(f"Cannot create {cls.__name__} from string: {string!r}")
+            raise ValueError(
+                f"Cannot create {cls.__name__} from string: {string!r}; "
+                "expected two numbers separated by a '/'"
+            )
         return cls(*parts)
 
 
