@@ -64,11 +64,15 @@ def get_track_info_mp3(file: mutagen.mp3.MP3) -> TrackInfo:
     text = str(file.tags.get("TRCK", ""))
     try:
         return TrackInfo.from_string(text)
-    except Exception:
-        track_number = TrackInfo.from_path(file.filename)
-        if text and int(text) != track_number.track_number:
-            raise ValueError("Metadata conflicts with filename")
-        return track_number
+    except Exception as exc:
+        logger.debug("Unable to parse TRCK tag: %s", exc)
+    track_number = TrackInfo.from_path(file.filename)
+    if text and int(text) != track_number.track_number:
+        raise ValueError(
+            "Metadata conflicts with filename: "
+            f"{int(text)} ≠ {track_number.track_number}"
+        )
+    return track_number
 
 
 @get_track_info.register
