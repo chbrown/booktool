@@ -131,6 +131,10 @@ def set_track_info_mp3(
 
     logger.info("Saving new TRCK tag %r to file: %s", TRCK, file.filename)
     file.tags.add(TRCK)
+    if minor < 3:
+        logger.info("Upgrading unsupported ID3 version 2.%s -> 2.3", minor)
+        minor = 3
+        # otherwise, mutagen raises a ValueError: "Only 3 or 4 allowed for v2_version"
     if not dry_run:
         file.save(v2_version=minor)
 
