@@ -41,7 +41,7 @@ class TrackInfo(NamedTuple):
 
 
 @singledispatch
-def get_track_info(file) -> TrackInfo:
+def get_track_info(file, ignore_conflicts: bool = False) -> TrackInfo:
     """
     Read tuple of (track_number, total_tracks) from file.
     1. Try to read it from the file's metadata; failing that:
@@ -53,13 +53,15 @@ def get_track_info(file) -> TrackInfo:
 
 
 @get_track_info.register
-def get_track_info_str(file: str) -> TrackInfo:
+def get_track_info_str(file: str, ignore_conflicts: bool = False) -> TrackInfo:
     file = mutagen.File(file)
-    return get_track_info(file)
+    return get_track_info(file, ignore_conflicts)
 
 
 @get_track_info.register
-def get_track_info_mp3(file: mutagen.mp3.MP3) -> TrackInfo:
+def get_track_info_mp3(
+    file: mutagen.mp3.MP3, ignore_conflicts: bool = False
+) -> TrackInfo:
     logger.log(logging.NOTSET, "Reading file as MP3")
     text = str(file.tags.get("TRCK", ""))
     try:
@@ -67,7 +69,7 @@ def get_track_info_mp3(file: mutagen.mp3.MP3) -> TrackInfo:
     except Exception as exc:
         logger.debug("Unable to parse TRCK tag: %s", exc)
     track_number = TrackInfo.from_path(file.filename)
-    if text and int(text) != track_number.track_number:
+    if not ignore_conflicts and text and int(text) != track_number.track_number:
         raise ValueError(
             "Metadata conflicts with filename: "
             f"{int(text)} ≠ {track_number.track_number}"
@@ -76,7 +78,9 @@ def get_track_info_mp3(file: mutagen.mp3.MP3) -> TrackInfo:
 
 
 @get_track_info.register
-def get_track_info_mp4(file: mutagen.mp4.MP4) -> TrackInfo:
+def get_track_info_mp4(
+    file: mutagen.mp4.MP4, ignore_conflicts: bool = False
+) -> TrackInfo:
     logger.log(logging.NOTSET, "Reading file as MP4")
     # not sure when having more than one "trkn" tags might come up :|
     tags = file.tags.get("trkn", [])
@@ -89,7 +93,7 @@ def get_track_info_mp4(file: mutagen.mp4.MP4) -> TrackInfo:
         if len(tag) == 2:
             return TrackInfo(*tag)
     track_number = TrackInfo.from_path(file.filename)
-    if tags and int(tags[0][0]) != track_number.track_number:
+    if not ignore_conflicts and tags and int(tags[0][0]) != track_number.track_number:
         raise ValueError("Metadata conflicts with filename")
     return track_number
 

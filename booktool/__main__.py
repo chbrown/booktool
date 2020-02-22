@@ -42,18 +42,26 @@ def cli(verbose: int):
     help="Destination directory",
 )
 @click.option(
+    "-i",
+    "--ignore-conflicts",
+    is_flag=True,
+    help="Ignore conflicts in existing metadata",
+)
+@click.option(
     "-n",
     "--dry-run",
     is_flag=True,
     help="Don't actually do anything, just log any changes that would be made",
 )
-def canonicalize(paths: List[str], destination: str, dry_run: bool):
+def canonicalize(
+    paths: List[str], destination: str, ignore_conflicts: bool, dry_run: bool
+):
     """
     Rearrange audio files into canonical structure.
 
     1. restructure directories and filenames
     2. fix file permissions
-    2. fix track numbers
+    3. fix track numbers
     """
 
     def path_key(path: str) -> Tuple[str, str]:
@@ -85,7 +93,7 @@ def canonicalize(paths: List[str], destination: str, dry_run: bool):
         for path in group_paths:
             logger.debug("Canonicalizing %r", path)
             _, ext = os.path.splitext(os.path.basename(path))
-            track_number, total_tracks = get_track_info(path)
+            track_number, total_tracks = get_track_info(path, ignore_conflicts)
             part_width = len(str(total_tracks))
 
             new_filepath = os.path.join(
