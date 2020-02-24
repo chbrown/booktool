@@ -22,7 +22,13 @@ class TrackInfo(NamedTuple):
         dirname, basename = os.path.split(path)
         total_tracks = len(list(filter(is_audio, os.listdir(dirname))))
         root, _ = os.path.splitext(basename)
-        track_number = int(re.search(r"\d+", root).group(0))
+        match = re.search(r"\d+", root)
+        if not match:
+            raise ValueError(
+                f"Cannot create {cls.__name__} from path: {path!r}; "
+                "expected one or more digits in path stem"
+            )
+        track_number = int(match.group(0))
         return cls(track_number, total_tracks)
 
     @classmethod
