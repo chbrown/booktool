@@ -125,10 +125,7 @@ def set_track_info_mp3(
 ):
     logger.log(logging.NOTSET, "Opened file as MP3")
 
-    major, minor, patch = file.tags.version
-    logger.debug("Manipulating ID3 version %s.%s.%s", major, minor, patch)
-    if major != 2:
-        raise ValueError("ID3 version is not 2.*.*")
+    logger.debug("Manipulating ID3 version %s", ".".join(map(str, file.tags.version)))
 
     track_number, total_tracks = track_info
     TRCK = mutagen.id3.TRCK(encoding=0, text=f"{track_number}/{total_tracks}")
@@ -141,6 +138,10 @@ def set_track_info_mp3(
 
     logger.info("Saving new TRCK tag %r to file: %s", TRCK, file.filename)
     file.tags.add(TRCK)
+    major, minor = file.tags.version[:2]
+    if major < 2:
+        logger.info("Upgrading unsupported ID3 version %s.%s -> 2.3", major, minor)
+        major, minor = 2, 3
     if minor < 3:
         logger.info("Upgrading unsupported ID3 version 2.%s -> 2.3", minor)
         minor = 3
