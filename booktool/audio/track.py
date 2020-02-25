@@ -82,7 +82,7 @@ def get_track_info_str(file: str, ignore_conflicts: bool = False) -> TrackInfo:
 def get_track_info_mp3(
     file: mutagen.mp3.MP3, ignore_conflicts: bool = False
 ) -> TrackInfo:
-    logger.log(logging.NOTSET, "Reading file as MP3")
+    logger.debug("Opened %r as MP3", file.filename)
     metadata = TrackInfo.from_string(str(file.tags.get("TRCK", "")))
     filesystem = TrackInfo.from_path(file.filename)
     # merge, prefering metadata when available, checking for conflicts if specified
@@ -99,7 +99,7 @@ def get_track_info_mp3(
 def get_track_info_mp4(
     file: mutagen.mp4.MP4, ignore_conflicts: bool = False
 ) -> TrackInfo:
-    logger.log(logging.NOTSET, "Reading file as MP4")
+    logger.debug("Opened %r as MP4", file.filename)
     # lots of my files seem to come with (0, 0) as the default, which iTunes treats as if missing
     trkn, *trkns = file.tags.get("trkn", []) or [(0, 0)]
     # not sure when having more than one "trkn" tags might come up :|
@@ -137,7 +137,7 @@ def set_track_info_str(file: str, track_info: TrackInfo, dry_run: bool = False):
 def set_track_info_mp3(
     file: mutagen.mp3.MP3, track_info: TrackInfo, dry_run: bool = False
 ):
-    logger.log(logging.NOTSET, "Opened file as MP3")
+    logger.debug("Opened %r as MP3", file.filename)
 
     logger.debug("Manipulating ID3 version %s", ".".join(map(str, file.tags.version)))
 
@@ -168,7 +168,7 @@ def set_track_info_mp3(
 def set_track_info_mp4(
     file: mutagen.mp4.MP4, track_info: TrackInfo, dry_run: bool = False
 ):
-    logger.log(logging.NOTSET, "Opened file as MP4")
+    logger.debug("Opened %r as MP4", file.filename)
 
     existing_trkn = file.tags.get("trkn", [])
     if len(existing_trkn) > 1:
@@ -203,7 +203,7 @@ def get_artist_str(file: str) -> str:
 
 @get_artist.register
 def get_artist_mp3(file: mutagen.mp3.MP3) -> str:
-    logger.log(logging.NOTSET, "Reading file as MP3")
+    logger.debug("Opened %r as MP3", file.filename)
     # the id3.TextFrame instance returned by id3.ID3.get stringifies nicely
     text = str(file.tags.get("TPE1"))
     # get the first name
@@ -212,7 +212,7 @@ def get_artist_mp3(file: mutagen.mp3.MP3) -> str:
 
 @get_artist.register
 def get_artist_mp4(file: mutagen.mp4.MP4) -> str:
-    logger.log(logging.NOTSET, "Reading file as MP4")
+    logger.debug("Opened %r as MP4", file.filename)
     # MP4Tags.get returns a list of strings
     return next(iter(file.tags.get("©ART")))
 
@@ -234,13 +234,13 @@ def get_album_str(file: str) -> str:
 
 @get_album.register
 def get_album_mp3(file: mutagen.mp3.MP3) -> str:
-    logger.log(logging.NOTSET, "Reading file as MP3")
+    logger.debug("Opened %r as MP3", file.filename)
     return str(file.tags.get("TALB"))
 
 
 @get_album.register
 def get_album_mp4(file: mutagen.mp4.MP4) -> str:
-    logger.log(logging.NOTSET, "Reading file as MP4")
+    logger.debug("Opened %r as MP4", file.filename)
     return " ".join(file.tags.get("©alb"))
 
 
