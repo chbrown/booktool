@@ -1,4 +1,4 @@
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 from functools import singledispatch
 import logging
 import os
@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class TrackInfo(NamedTuple):
-    track_number: int
-    total_tracks: int
+    track_number: Optional[int] = None
+    total_tracks: Optional[int] = None
 
     @classmethod
     def from_path(cls, path: str):
@@ -23,23 +23,38 @@ class TrackInfo(NamedTuple):
         total_tracks = len(list(filter(is_audio, os.listdir(dirname))))
         root, _ = os.path.splitext(basename)
         match = re.search(r"\d+", root)
-        if not match:
-            raise ValueError(
-                f"Cannot create {cls.__name__} from path: {path!r}; "
-                "expected one or more digits in path stem"
-            )
-        track_number = int(match.group(0))
+        track_number = int(match.group(0)) if match else None
         return cls(track_number, total_tracks)
 
     @classmethod
     def from_string(cls, string: str):
-        parts = list(map(int, string.split("/", maxsplit=1)))
-        if len(parts) != 2:
-            raise ValueError(
-                f"Cannot create {cls.__name__} from string: {string!r}; "
-                "expected two numbers separated by a '/'"
-            )
-        return cls(*parts)
+        split_at = string.find("/")
+        track_number_string, total_tracks_string = (
+            (string[:split_at], string[split_at + 1 :])
+            if split_at != -1
+            else (string, "")
+        )
+        track_number = int(track_number_string) if track_number_string else None
+        total_tracks = int(total_tracks_string) if total_tracks_string else None
+        return cls(track_number, total_tracks)
+
+    def merge(self, other: "TrackInfo", raise_on_conflicts: bool = True) -> "TrackInfo":
+        # prefer `self` to `other` (treating 0's like None's)
+        track_number = self.track_number or other.track_number
+        total_tracks = self.total_tracks or other.total_tracks
+        # check for conflicts
+        if raise_on_conflicts:
+            if other.track_number and track_number != other.track_number:
+                raise ValueError(
+                    "Cannot merge with conflicts (track number): "
+                    f"{track_number} ≠ {other.track_number}"
+                )
+            if other.total_tracks and total_tracks != other.total_tracks:
+                raise ValueError(
+                    "Cannot merge with conflicts (total tracks): "
+                    f"{total_tracks} ≠ {other.total_tracks}"
+                )
+        return TrackInfo(track_number, total_tracks)
 
 
 ###########################
@@ -50,10 +65,9 @@ class TrackInfo(NamedTuple):
 def get_track_info(file, ignore_conflicts: bool = False) -> TrackInfo:
     """
     Read tuple of (track_number, total_tracks) from file.
-    1. Try to read it from the file's metadata; failing that:
-    2. Infer it from filesystem
-       * If the track_number inferred from the filename conflicts with the file's
-       metadata, raise a ValueError.
+    1. Read it from the metadata
+    2. Infer it from filesystem (filename and other audio files in directory)
+    Unless ignore_conflicts is True, raise a ValueError if these two sources conflict.
     """
     raise NotImplementedError(f"get_track_info not implemented for file: {file}")
 
@@ -69,18 +83,16 @@ def get_track_info_mp3(
     file: mutagen.mp3.MP3, ignore_conflicts: bool = False
 ) -> TrackInfo:
     logger.log(logging.NOTSET, "Reading file as MP3")
-    text = str(file.tags.get("TRCK", ""))
-    try:
-        return TrackInfo.from_string(text)
-    except Exception as exc:
-        logger.debug("Unable to parse TRCK tag: %s", exc)
-    track_number = TrackInfo.from_path(file.filename)
-    if not ignore_conflicts and text and int(text) != track_number.track_number:
+    metadata = TrackInfo.from_string(str(file.tags.get("TRCK", "")))
+    filesystem = TrackInfo.from_path(file.filename)
+    # merge, prefering metadata when available, checking for conflicts if specified
+    track_info = metadata.merge(filesystem, not ignore_conflicts)
+    # check for validity
+    if track_info.track_number is None or track_info.total_tracks is None:
         raise ValueError(
-            "Metadata conflicts with filename: "
-            f"{int(text)} ≠ {track_number.track_number}"
+            f"Cannot read/infer TrackInfo from metadata/filesystem for {file.filename}"
         )
-    return track_number
+    return track_info
 
 
 @get_track_info.register
@@ -88,20 +100,22 @@ def get_track_info_mp4(
     file: mutagen.mp4.MP4, ignore_conflicts: bool = False
 ) -> TrackInfo:
     logger.log(logging.NOTSET, "Reading file as MP4")
+    # lots of my files seem to come with (0, 0) as the default, which iTunes treats as if missing
+    trkn, *trkns = file.tags.get("trkn", []) or [(0, 0)]
     # not sure when having more than one "trkn" tags might come up :|
-    tags = file.tags.get("trkn", [])
-    if len(tags) > 1:
+    if trkns:
         raise ValueError("Too many trkn tags")
-    if tags:
-        tag = tags[0]
-        if len(tag) > 2:
-            raise ValueError("Too many trkn tag parts")
-        if len(tag) == 2:
-            return TrackInfo(*tag)
-    track_number = TrackInfo.from_path(file.filename)
-    if not ignore_conflicts and tags and int(tags[0][0]) != track_number.track_number:
-        raise ValueError("Metadata conflicts with filename")
-    return track_number
+    # seems like trkn items are always 2-tuples?
+    metadata = TrackInfo(*trkn)
+    filesystem = TrackInfo.from_path(file.filename)
+    # merge, prefering metadata when available, checking for conflicts if specified
+    track_info = metadata.merge(filesystem, not ignore_conflicts)
+    # check for validity
+    if track_info.track_number is None or track_info.total_tracks is None:
+        raise ValueError(
+            f"Cannot read/infer TrackInfo from metadata/filesystem for {file.filename}"
+        )
+    return track_info
 
 
 ###########################
