@@ -47,7 +47,7 @@ def _gethome() -> str:
     home = os.getenv("HOME")
     if home:
         return home
-    import pwd
+    import pwd  # pylint: disable=import-outside-toplevel
 
     return pwd.getpwuid(os.getuid()).pw_dir
 
