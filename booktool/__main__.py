@@ -14,8 +14,8 @@ from booktool.audio.track import (
     get_album,
     get_artist,
     get_duration,
-    get_track_info,
-    set_track_info,
+    get_track,
+    set_track,
 )
 from booktool.util import chmod, move, sanitize
 
@@ -93,7 +93,7 @@ def canonicalize(
         for path in group_paths:
             logger.debug("Canonicalizing %r", path)
             _, ext = os.path.splitext(os.path.basename(path))
-            track_number, total_tracks = get_track_info(path, ignore_conflicts)
+            track_number, total_tracks = get_track(path, ignore_conflicts)
             part_width = len(str(total_tracks))
 
             new_filepath = os.path.join(
@@ -108,7 +108,7 @@ def canonicalize(
             # fix permissions on files
             chmod(path, 0o644, dry_run=dry_run)
             # fix track numbers in audio
-            set_track_info(path, (track_number, total_tracks), dry_run=dry_run)
+            set_track(path, (track_number, total_tracks), dry_run=dry_run)
             # ignore xattrs; they're dropped when syncing to cloud storage anyway
 
 

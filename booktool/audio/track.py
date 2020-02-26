@@ -13,92 +13,86 @@ from booktool.audio import is_audio
 logger = logging.getLogger(__name__)
 
 
-class TrackInfo(NamedTuple):
-    track_number: Optional[int] = None
-    total_tracks: Optional[int] = None
+class Part(NamedTuple):
+    index: Optional[int] = None
+    total: Optional[int] = None
 
     @classmethod
     def from_path(cls, path: str):
         dirname, basename = os.path.split(path)
-        total_tracks = len(list(filter(is_audio, os.listdir(dirname))))
+        total = len(list(filter(is_audio, os.listdir(dirname))))
         root, _ = os.path.splitext(basename)
         match = re.search(r"\d+", root)
-        track_number = int(match.group(0)) if match else None
-        return cls(track_number, total_tracks)
+        index = int(match.group(0)) if match else None
+        return cls(index, total)
 
     @classmethod
     def from_string(cls, string: str):
         split_at = string.find("/")
-        track_number_string, total_tracks_string = (
+        index_string, total_string = (
             (string[:split_at], string[split_at + 1 :])
             if split_at != -1
             else (string, "")
         )
-        track_number = int(track_number_string) if track_number_string else None
-        total_tracks = int(total_tracks_string) if total_tracks_string else None
-        return cls(track_number, total_tracks)
+        index = int(index_string) if index_string else None
+        total = int(total_string) if total_string else None
+        return cls(index, total)
 
-    def merge(self, other: "TrackInfo", raise_on_conflicts: bool = True) -> "TrackInfo":
+    def merge(self, other: "Part", raise_on_conflicts: bool = True) -> "Part":
         # prefer `self` to `other` (treating 0's like None's)
-        track_number = self.track_number or other.track_number
-        total_tracks = self.total_tracks or other.total_tracks
+        index = self.index or other.index
+        total = self.total or other.total
         # check for conflicts
         if raise_on_conflicts:
-            if other.track_number and track_number != other.track_number:
+            if other.index and index != other.index:
                 raise ValueError(
-                    "Cannot merge with conflicts (track number): "
-                    f"{track_number} ≠ {other.track_number}"
+                    f"Cannot merge with conflicts (index): {index} ≠ {other.index}"
                 )
-            if other.total_tracks and total_tracks != other.total_tracks:
+            if other.total and total != other.total:
                 raise ValueError(
-                    "Cannot merge with conflicts (total tracks): "
-                    f"{total_tracks} ≠ {other.total_tracks}"
+                    f"Cannot merge with conflicts (total): {total} ≠ {other.total}"
                 )
-        return TrackInfo(track_number, total_tracks)
+        return Part(index, total)
 
 
 ###########################
-# get_track_info dispatch
+# get_track dispatch
 
 
 @singledispatch
-def get_track_info(file, ignore_conflicts: bool = False) -> TrackInfo:
+def get_track(file, ignore_conflicts: bool = False) -> Part:
     """
-    Read tuple of (track_number, total_tracks) from file.
+    Read tuple of (index, total) from file.
     1. Read it from the metadata
     2. Infer it from filesystem (filename and other audio files in directory)
     Unless ignore_conflicts is True, raise a ValueError if these two sources conflict.
     """
-    raise NotImplementedError(f"get_track_info not implemented for file: {file}")
+    raise NotImplementedError(f"get_track not implemented for file: {file}")
 
 
-@get_track_info.register
-def get_track_info_str(file: str, ignore_conflicts: bool = False) -> TrackInfo:
+@get_track.register
+def get_track_str(file: str, ignore_conflicts: bool = False) -> Part:
     file = mutagen.File(file)
-    return get_track_info(file, ignore_conflicts)
+    return get_track(file, ignore_conflicts)
 
 
-@get_track_info.register
-def get_track_info_mp3(
-    file: mutagen.mp3.MP3, ignore_conflicts: bool = False
-) -> TrackInfo:
+@get_track.register
+def get_track_mp3(file: mutagen.mp3.MP3, ignore_conflicts: bool = False) -> Part:
     logger.debug("Opened %r as MP3", file.filename)
-    metadata = TrackInfo.from_string(str(file.tags.get("TRCK", "")))
-    filesystem = TrackInfo.from_path(file.filename)
+    metadata = Part.from_string(str(file.tags.get("TRCK", "")))
+    filesystem = Part.from_path(file.filename)
     # merge, prefering metadata when available, checking for conflicts if specified
-    track_info = metadata.merge(filesystem, not ignore_conflicts)
+    part = metadata.merge(filesystem, not ignore_conflicts)
     # check for validity
-    if track_info.track_number is None or track_info.total_tracks is None:
+    if part.index is None or part.total is None:
         raise ValueError(
-            f"Cannot read/infer TrackInfo from metadata/filesystem for {file.filename}"
+            f"Cannot read/infer Part from metadata/filesystem for {file.filename}"
         )
-    return track_info
+    return part
 
 
-@get_track_info.register
-def get_track_info_mp4(
-    file: mutagen.mp4.MP4, ignore_conflicts: bool = False
-) -> TrackInfo:
+@get_track.register
+def get_track_mp4(file: mutagen.mp4.MP4, ignore_conflicts: bool = False) -> Part:
     logger.debug("Opened %r as MP4", file.filename)
     # lots of my files seem to come with (0, 0) as the default, which iTunes treats as if missing
     trkn, *trkns = file.tags.get("trkn", []) or [(0, 0)]
@@ -106,43 +100,41 @@ def get_track_info_mp4(
     if trkns:
         raise ValueError("Too many trkn tags")
     # seems like trkn items are always 2-tuples?
-    metadata = TrackInfo(*trkn)
-    filesystem = TrackInfo.from_path(file.filename)
+    metadata = Part(*trkn)
+    filesystem = Part.from_path(file.filename)
     # merge, prefering metadata when available, checking for conflicts if specified
-    track_info = metadata.merge(filesystem, not ignore_conflicts)
+    part = metadata.merge(filesystem, not ignore_conflicts)
     # check for validity
-    if track_info.track_number is None or track_info.total_tracks is None:
+    if part.index is None or part.total is None:
         raise ValueError(
-            f"Cannot read/infer TrackInfo from metadata/filesystem for {file.filename}"
+            f"Cannot read/infer Part from metadata/filesystem for {file.filename}"
         )
-    return track_info
+    return part
 
 
 ###########################
-# set_track_info dispatch
+# set_track dispatch
 
 
 @singledispatch
-def set_track_info(file, track_info: TrackInfo, dry_run: bool = False):
-    raise NotImplementedError(f"set_track_info not implemented for file: {file}")
+def set_track(file, part: Part, dry_run: bool = False):
+    raise NotImplementedError(f"set_track not implemented for file: {file}")
 
 
-@set_track_info.register
-def set_track_info_str(file: str, track_info: TrackInfo, dry_run: bool = False):
+@set_track.register
+def set_track_str(file: str, part: Part, dry_run: bool = False):
     file = mutagen.File(file)
-    return set_track_info(file, track_info, dry_run=dry_run)
+    return set_track(file, part, dry_run=dry_run)
 
 
-@set_track_info.register
-def set_track_info_mp3(
-    file: mutagen.mp3.MP3, track_info: TrackInfo, dry_run: bool = False
-):
+@set_track.register
+def set_track_mp3(file: mutagen.mp3.MP3, part: Part, dry_run: bool = False):
     logger.debug("Opened %r as MP3", file.filename)
 
     logger.debug("Manipulating ID3 version %s", ".".join(map(str, file.tags.version)))
 
-    track_number, total_tracks = track_info
-    TRCK = mutagen.id3.TRCK(encoding=0, text=f"{track_number}/{total_tracks}")
+    index, total = part
+    TRCK = mutagen.id3.TRCK(encoding=0, text=f"{index}/{total}")
 
     existing_TRCK = file.tags.get("TRCK")
     if existing_TRCK:
@@ -164,17 +156,15 @@ def set_track_info_mp3(
         file.save(v2_version=minor)
 
 
-@set_track_info.register
-def set_track_info_mp4(
-    file: mutagen.mp4.MP4, track_info: TrackInfo, dry_run: bool = False
-):
+@set_track.register
+def set_track_mp4(file: mutagen.mp4.MP4, part: Part, dry_run: bool = False):
     logger.debug("Opened %r as MP4", file.filename)
 
     existing_trkn = file.tags.get("trkn", [])
     if len(existing_trkn) > 1:
         raise ValueError("Too many trkn tags")
 
-    trkn = [tuple(track_info)]
+    trkn = [tuple(part)]
     if existing_trkn:
         logger.debug("Already has trkn tags: %r", existing_trkn)
         if existing_trkn == trkn:
