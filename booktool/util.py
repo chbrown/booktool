@@ -27,7 +27,7 @@ def sanitize(string: str) -> str:
     # collapse hyphenations and delete apostrophes that mark contractions
     string = re.sub(r"([A-Za-z])[-']([A-Za-z])", r"\1\2", string)
     # replace separator punctuation with a hyphen
-    string = re.sub(r"\s*[!./:;?]\s*", r"-", string)
+    string = re.sub(r"\s*[!*./:;?]\s*", r"-", string)
     # replace parentheticals by separating with hyphen
     string = re.sub(r"\s*\(([^)]*)\)\s*", r"-\1-", string)
     string = re.sub(r"\s*\[([^]]*)\]\s*", r"-\1-", string)
