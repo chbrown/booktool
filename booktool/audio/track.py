@@ -176,6 +176,65 @@ def set_track_mp4(file: mutagen.mp4.MP4, part: Part, dry_run: bool = False):
         file.save()
 
 
+####################
+# get_disc dispatch
+
+
+@singledispatch
+def get_disc(file) -> Part:
+    raise NotImplementedError(f"get_disc not implemented for file: {file}")
+
+
+@get_disc.register
+def get_disc_str(file: str) -> Part:
+    file = mutagen.File(file)
+    return get_disc(file)
+
+
+@get_disc.register
+def get_disc_mp3(file: mutagen.mp3.MP3) -> Part:
+    logger.debug("Opened %r as MP3", file.filename)
+    return Part.from_string(str(file.tags.get("TPOS", "")))
+
+
+@get_disc.register
+def get_disc_mp4(file: mutagen.mp4.MP4) -> Part:
+    logger.debug("Opened %r as MP4", file.filename)
+    disk, = file.tags.get("disk", [(0, 0)])
+    return Part(*disk)
+
+
+####################
+# del_disc dispatch
+
+
+@singledispatch
+def del_disc(file, dry_run: bool = False):
+    raise NotImplementedError(f"del_disc not implemented for file: {file}")
+
+
+@del_disc.register
+def del_disc_str(file: str, dry_run: bool = False):
+    file = mutagen.File(file)
+    return del_disc(file)
+
+
+@del_disc.register
+def del_disc_mp3(file: mutagen.mp3.MP3, dry_run: bool = False):
+    logger.debug("Opened %r as MP3", file.filename)
+    file.tags.delall("TPOS")
+    if not dry_run:
+        file.save()
+
+
+@del_disc.register
+def del_disc_mp4(file: mutagen.mp4.MP4, dry_run: bool = False):
+    logger.debug("Opened %r as MP4", file.filename)
+    file.tags.delall("disk")
+    if not dry_run:
+        file.save()
+
+
 #####################
 # get_artist dispatch
 
