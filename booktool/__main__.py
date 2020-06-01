@@ -10,6 +10,7 @@ import click
 
 import booktool
 from booktool.audio import find_audio
+from booktool.audio.group import flatten_discs
 from booktool.audio.track import (
     get_album,
     get_artist,
@@ -89,6 +90,8 @@ def canonicalize(
             group_paths = [
                 os.path.join(commonpath, relpath) for relpath in group_relpaths
             ]
+
+        flatten_discs(group_paths)
 
         for path in group_paths:
             logger.debug("Canonicalizing %r", path)
