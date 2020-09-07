@@ -216,7 +216,7 @@ def del_disc(file, dry_run: bool = False):
 @del_disc.register
 def del_disc_str(file: str, dry_run: bool = False):
     file = mutagen.File(file)
-    return del_disc(file)
+    return del_disc(file, dry_run=dry_run)
 
 
 @del_disc.register
