@@ -8,6 +8,8 @@ import os
 
 import click
 
+from filesystemlib import chmod, move
+
 import booktool
 from booktool.audio import find_audio
 from booktool.audio.group import flatten_discs
@@ -18,7 +20,7 @@ from booktool.audio.track import (
     get_track,
     set_track,
 )
-from booktool.util import chmod, move, sanitize
+from booktool.util import sanitize
 
 logger = logging.getLogger(booktool.__name__)
 
