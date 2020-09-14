@@ -8,6 +8,10 @@ except Exception:
     pass
 
 
+# 3 digits, optional, followed by 9 digits, followed by a digit or "X"
+ISBN_PATTERN = r"^(\d{3})?\d{9}[0-9X]$"
+
+
 def isbn13to10(isbn13: str) -> str:
     """
     Convert ISBN-13 to ISBN-10 (without checking validity of input).
