@@ -200,7 +200,7 @@ def get_disc_mp3(file: mutagen.mp3.MP3) -> Part:
 @get_disc.register
 def get_disc_mp4(file: mutagen.mp4.MP4) -> Part:
     logger.debug("Opened %r as MP4", file.filename)
-    disk, = file.tags.get("disk", [(0, 0)])
+    (disk,) = file.tags.get("disk", [(0, 0)])
     return Part(*disk)
 
 
