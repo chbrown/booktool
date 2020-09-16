@@ -12,11 +12,12 @@ def is_sanitized(string: str) -> bool:
 
 
 def sanitize(string: str) -> str:
-    # remove accents (Mn = Modifier Letter)
+    # remove accents
     string = "".join(
         char
+        # NFKD = Compatibility Decomposition
         for char in unicodedata.normalize("NFKD", string)
-        if unicodedata.category(char) != "Mn"
+        if unicodedata.category(char) != "Mn"  # Mn = Nonspacing Mark
     )
     # remove periods after initials; ensure a space follows
     string = re.sub(r"\b([A-Z])(\. ?| )", r"\1 ", string)
