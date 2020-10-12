@@ -38,3 +38,14 @@ def compress(source: Path, target: Path, mode: str = "x"):
     # from source to target:
     source_st = source.stat()
     os.utime(target, ns=(source_st.st_atime_ns, source_st.st_mtime_ns))
+
+
+def decompress(source: Path, target: Path):
+    """
+    Unpack the zipped EPUB file at `source` into file structure at `target`.
+
+    Clobbers by default.
+    Doesn't remove extraneous files in `target` that are missing from `source`.
+    """
+    with zipfile.ZipFile(source) as zf:
+        zf.extractall(path=target)
